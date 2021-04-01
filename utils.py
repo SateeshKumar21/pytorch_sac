@@ -1,35 +1,14 @@
+import math
+import os
+import random
+from collections import deque
+
+import gym
 import numpy as np
 import torch
-from torch import nn
-from torch import distributions as pyd
 import torch.nn.functional as F
-import gym
-import os
-from collections import deque
-import random
-import math
-
-import dmc2gym
-
-
-def make_env(cfg):
-    """Helper function to create dm_control environment"""
-    if cfg.env == 'ball_in_cup_catch':
-        domain_name = 'ball_in_cup'
-        task_name = 'catch'
-    else:
-        domain_name = cfg.env.split('_')[0]
-        task_name = '_'.join(cfg.env.split('_')[1:])
-
-    env = dmc2gym.make(domain_name=domain_name,
-                       task_name=task_name,
-                       seed=cfg.seed,
-                       visualize_reward=True)
-    env.seed(cfg.seed)
-    assert env.action_space.low.min() >= -1
-    assert env.action_space.high.max() <= 1
-
-    return env
+from torch import distributions as pyd
+from torch import nn
 
 
 class eval_mode(object):
@@ -66,8 +45,10 @@ class train_mode(object):
 
 def soft_update_params(net, target_net, tau):
     for param, target_param in zip(net.parameters(), target_net.parameters()):
-        target_param.data.copy_(tau * param.data +
-                                (1 - tau) * target_param.data)
+        target_param.data.copy_(
+            tau * param.data + (1 - tau) * target_param.data
+        )
+
 
 def set_seed_everywhere(seed):
     torch.manual_seed(seed)
@@ -85,24 +66,23 @@ def make_dir(*path_parts):
         pass
     return dir_path
 
+
 def weight_init(m):
     """Custom weight init for Conv2D and Linear layers."""
     if isinstance(m, nn.Linear):
         nn.init.orthogonal_(m.weight.data)
-        if hasattr(m.bias, 'data'):
+        if hasattr(m.bias, "data"):
             m.bias.data.fill_(0.0)
 
 
 class MLP(nn.Module):
-    def __init__(self,
-                 input_dim,
-                 hidden_dim,
-                 output_dim,
-                 hidden_depth,
-                 output_mod=None):
+    def __init__(
+        self, input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None
+    ):
         super().__init__()
-        self.trunk = mlp(input_dim, hidden_dim, output_dim, hidden_depth,
-                         output_mod)
+        self.trunk = mlp(
+            input_dim, hidden_dim, output_dim, hidden_depth, output_mod
+        )
         self.apply(weight_init)
 
     def forward(self, x):
@@ -121,6 +101,7 @@ def mlp(input_dim, hidden_dim, output_dim, hidden_depth, output_mod=None):
         mods.append(output_mod)
     trunk = nn.Sequential(*mods)
     return trunk
+
 
 def to_np(t):
     if t is None:
