@@ -1,13 +1,15 @@
-import torch
 import os
 import time
+
 import yaml
-from video import VideoRecorder
-from logger import Logger
-from agent.sac import SACAgent
+
+import torch
 from ml_collections import ConfigDict
-from replay_buffer import ReplayBuffer
-import utils
+from torchsac import utils
+from torchsac.agent.sac import SACAgent
+from torchsac.logger import Logger
+from torchsac.replay_buffer import ReplayBuffer
+from torchsac.video import VideoRecorder
 
 
 def evaluate(agent, env, step, cfg, logger, video_recorder):
@@ -23,17 +25,15 @@ def evaluate(agent, env, step, cfg, logger, video_recorder):
             with utils.eval_mode(agent):
                 action = agent.act(obs, sample=False)
             obs, reward, done, info = env.step(action)
-            if cfg.sparse_reward:
-                reward = env.score_on_end_of_traj()
             video_recorder.record(env)
             episode_reward += reward
-        average_episode_success += info['eval_score']
+        average_episode_success += info["eval_score"]
         average_episode_reward += episode_reward
-        video_recorder.save(f'{step}.mp4')
+        video_recorder.save(f"{step}.mp4")
     average_episode_reward /= cfg.num_eval_episodes
     average_episode_success /= cfg.num_eval_episodes
-    logger.log('eval/episode_reward', average_episode_reward, step)
-    logger.log('eval/episode_success', average_episode_success, step)
+    logger.log("eval/episode_reward", average_episode_reward, step)
+    logger.log("eval/episode_success", average_episode_success, step)
     logger.dump(step)
 
 
@@ -44,16 +44,16 @@ def train(env, logger, video_recorder, cfg, agent, replay_buffer):
     while step < cfg.num_train_steps:
         if done:
             if step > 0:
-                logger.log('train/duration', time.time() - start_time, step)
+                logger.log("train/duration", time.time() - start_time, step)
                 start_time = time.time()
                 logger.dump(step, save=(step > cfg.num_seed_steps))
 
             # Evaluate agent periodically.
             if step > cfg.num_seed_steps and step % cfg.eval_frequency == 0:
-                logger.log('eval/episode', episode, step)
+                logger.log("eval/episode", episode, step)
                 evaluate(agent, env, step, cfg, logger, video_recorder)
 
-            logger.log('train/episode_reward', episode_reward, step)
+            logger.log("train/episode_reward", episode_reward, step)
 
             obs = env.reset()
             agent.reset()
@@ -62,7 +62,7 @@ def train(env, logger, video_recorder, cfg, agent, replay_buffer):
             episode_step = 0
             episode += 1
 
-            logger.log('train/episode', episode, step)
+            logger.log("train/episode", episode, step)
 
         # Sample action for data collection.
         if step < cfg.num_seed_steps:
@@ -88,6 +88,7 @@ def train(env, logger, video_recorder, cfg, agent, replay_buffer):
         episode_step += 1
         step += 1
 
+
 def main(cfg, make_env, experiment_name):
     exp_dir = os.path.join(cfg.save_dir, experiment_name)
     if not os.path.exists(exp_dir):
@@ -97,14 +98,11 @@ def main(cfg, make_env, experiment_name):
     else:
         raise ValueError("Experiment already exists.")
     logger = Logger(
-        exp_dir,
-        save_tb=True,
-        log_frequency=cfg.log_frequency,
-        agent='sac',
+        exp_dir, save_tb=True, log_frequency=cfg.log_frequency, agent="sac",
     )
     utils.set_seed_everywhere(cfg.seed)
     device = torch.device(cfg.device)
-    env = make_env(cfg)
+    env = make_env()
     cfg.sac.obs_dim = env.observation_space.shape[0]
     cfg.sac.action_dim = env.action_space.shape[0]
     cfg.sac.action_range = [

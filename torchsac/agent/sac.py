@@ -1,13 +1,11 @@
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import math
 
-from agent import Agent
-import utils
-from .critic import DoubleQCritic
-from .actor import DiagGaussianActor
+from torchsac.agent import Agent
+from torchsac import utils
+from torchsac.agent.critic import DoubleQCritic
+from torchsac.agent.actor import DiagGaussianActor
 
 
 class SACAgent(Agent):
@@ -29,15 +27,11 @@ class SACAgent(Agent):
         self.learnable_temperature = cfg.learnable_temperature
 
         self.critic = DoubleQCritic(
-            obs_dim,
-            action_dim,
-            cfg.critic.hidden_dim,
-            cfg.critic.hidden_depth).to(self.device)
+            obs_dim, action_dim, cfg.critic.hidden_dim, cfg.critic.hidden_depth
+        ).to(self.device)
         self.critic_target = DoubleQCritic(
-            obs_dim,
-            action_dim,
-            cfg.critic.hidden_dim,
-            cfg.critic.hidden_depth).to(self.device)
+            obs_dim, action_dim, cfg.critic.hidden_dim, cfg.critic.hidden_depth
+        ).to(self.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         self.actor = DiagGaussianActor(
@@ -48,7 +42,9 @@ class SACAgent(Agent):
             cfg.actor.log_std_bounds,
         ).to(self.device)
 
-        self.log_alpha = torch.tensor(np.log(cfg.init_temperature)).to(self.device)
+        self.log_alpha = torch.tensor(np.log(cfg.init_temperature)).to(
+            self.device
+        )
         self.log_alpha.requires_grad = True
         # set target entropy to -|A|
         self.target_entropy = -action_dim

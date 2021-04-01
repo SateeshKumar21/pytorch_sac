@@ -1,12 +1,12 @@
 import csv
-import json
 import os
 import shutil
 from collections import defaultdict
 
 import numpy as np
-import torch
 from termcolor import colored
+
+import torch
 from torch.utils.tensorboard import SummaryWriter
 
 COMMON_TRAIN_FORMAT = [

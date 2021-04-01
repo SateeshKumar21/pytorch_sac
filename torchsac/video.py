@@ -1,11 +1,9 @@
 import os.path as osp
-import sys
 
 import imageio
-import numpy as np
 from PIL import Image
 
-import utils
+from torchsac import utils
 
 
 class VideoRecorder(object):
