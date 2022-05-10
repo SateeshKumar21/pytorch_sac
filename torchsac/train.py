@@ -10,9 +10,9 @@ from torchsac.agent.sac import SACAgent
 from torchsac.logger import Logger
 from torchsac.replay_buffer import ReplayBuffer
 from torchsac.video import VideoRecorder
+import wandb 
 
-
-def evaluate(agent, env, step, cfg, logger, video_recorder):
+def evaluate(agent, env, step, cfg, logger, video_recorder, wandb_logging):
     average_episode_reward = 0
     average_episode_success = 0
     for episode in range(cfg.num_eval_episodes):
@@ -34,10 +34,15 @@ def evaluate(agent, env, step, cfg, logger, video_recorder):
     average_episode_success /= cfg.num_eval_episodes
     logger.log("eval/episode_reward", average_episode_reward, step)
     logger.log("eval/episode_success", average_episode_success, step)
+
+    if wandb_logging:
+         wandb.log({'eval/episode_reward': average_episode_reward}, step=step+1)
+         wandb.log({'eval/episode_success': average_episode_success}, step=step+1)
+        
     logger.dump(step)
 
 
-def train(env, logger, video_recorder, cfg, agent, replay_buffer):
+def train(env, logger, video_recorder, cfg, agent, replay_buffer, wandb_logging):
     step = 0
     episode, episode_reward, done = 0, 0, True
     start_time = time.time()
@@ -47,13 +52,21 @@ def train(env, logger, video_recorder, cfg, agent, replay_buffer):
                 logger.log("train/duration", time.time() - start_time, step)
                 start_time = time.time()
                 logger.dump(step, save=(step > cfg.num_seed_steps))
+                if wandb_logging:
+                    wandb.log({'train/duration0':time.time() - start_time}, step=step+1)
 
             # Evaluate agent periodically.
             if step > cfg.num_seed_steps and step % cfg.eval_frequency == 0:
+                if wandb_logging:
+                    wandb.log({'eval/episode':episode}, step=step+1)
+                
                 logger.log("eval/episode", episode, step)
-                evaluate(agent, env, step, cfg, logger, video_recorder)
+                evaluate(agent, env, step, cfg, logger, video_recorder, wandb_logging)
 
             logger.log("train/episode_reward", episode_reward, step)
+
+            if wandb_logging:
+                wandb.log({'train/episode_reward':episode_reward}, step=step+1)
 
             obs = env.reset()
             agent.reset()
@@ -63,6 +76,9 @@ def train(env, logger, video_recorder, cfg, agent, replay_buffer):
             episode += 1
 
             logger.log("train/episode", episode, step)
+
+            if wandb_logging:
+                wandb.log({'train/episode': episode}, step=step+1)
 
         # Sample action for data collection.
         if step < cfg.num_seed_steps:
@@ -89,7 +105,9 @@ def train(env, logger, video_recorder, cfg, agent, replay_buffer):
         step += 1
 
 
-def main(cfg, make_env, experiment_name):
+def main(cfg, make_env, experiment_name, wandb_logging=False):
+
+
     exp_dir = os.path.join(cfg.save_dir, experiment_name)
     if not os.path.exists(exp_dir):
         os.makedirs(exp_dir)
@@ -117,4 +135,4 @@ def main(cfg, make_env, experiment_name):
         device,
     )
     video_recorder = VideoRecorder(exp_dir if cfg.save_video else None)
-    train(env, logger, video_recorder, cfg, agent, replay_buffer)
+    train(env, logger, video_recorder, cfg, agent, replay_buffer, wandb_logging)
